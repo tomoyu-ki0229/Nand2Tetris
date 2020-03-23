@@ -2,10 +2,10 @@ mod command_type;
 mod parser;
 mod code_writer;
 
-pub fn vm_translator(command_line_arg: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn vm_translator(translate_path: &str, no_init_option: bool) -> Result<(), Box<dyn std::error::Error>> {
     let path: std::path::PathBuf  = {
         let mut path = std::path::PathBuf::new();
-        path.push(command_line_arg);
+        path.push(translate_path);
         path
     };
     let output_path = {
@@ -17,22 +17,27 @@ pub fn vm_translator(command_line_arg: &str) -> Result<(), Box<dyn std::error::E
         output_path.set_extension("asm");
         output_path
     };
-    let f_num: usize = 0;
-    translate(&path, &output_path, f_num)?;
+    code_writer::create_file(&output_path)?;
+    if !no_init_option { 
+        code_writer::init(&output_path)?;
+    }
+    translate(&path, &output_path)?;
     Ok(())
 }
 
-fn translate(path: &std::path::PathBuf, output_path: &std::path::PathBuf, mut f_num: usize) -> Result<(), Box<dyn std::error::Error>>{
+fn translate(path: &std::path::PathBuf, output_path: &std::path::PathBuf) -> Result<(), Box<dyn std::error::Error>>{
     if path.is_file() {
         if path.extension().unwrap() == "vm" {
-            let _parsed_vm_file = parser::parse(&path);
-            f_num = f_num + 1;
-            code_writer::code_write(_parsed_vm_file, &output_path, &(f_num.to_string()+ "F"))?;
+            let parsed_vm_file = parser::parse(&path);
+            let file_name = {
+                path.file_stem().expect("[ERROR]failed to get file name").to_str().expect("[ERRORfailed to convert OS_str to &str")
+            };
+            code_writer::code_write(parsed_vm_file, &output_path, file_name)?;
         }
     } else {
-        for child_path in path.read_dir().expect("failed to read path of child dir") {
+        for child_path in path.read_dir().expect("[ERRORfailed to read path of child dir") {
             if let Ok(child_path) = child_path {
-                translate(&child_path.path(), &output_path, f_num)?;
+                translate(&child_path.path(), &output_path)?;
             }
         }
     }
